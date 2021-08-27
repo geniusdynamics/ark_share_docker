@@ -142,6 +142,7 @@ RUN set -eux; \
     mv /tmp/${SHARE_GOOGLEDRIVE_AMP} amps_share/. ; \
     mv /tmp/${ALFRESCO}/web-server/shared/classes/alfresco/web-extension/* shared/classes/alfresco/web-extension/. ; \
     unzip -d webapps/share /tmp/${ALFRESCO}/web-server/webapps/share.war ; \
+    sed -i "s/shared.loader=/shared.loader=\${catalina.base}\/shared\/classes/" ${TOMCAT_DIR}/conf/catalina.properties ; \
     yum -y erase unzip; \
     yum clean all; \
     rm -rf /tmp/*
@@ -149,8 +150,8 @@ RUN set -eux; \
 # Copy the updated log configs to remove any logging to a file and only to stdout (console)
 COPY ${resource_path}/substituter.sh shared/classes/alfresco
 COPY ${resource_path}/share-config-custom.xml shared/classes/alfresco/web-extension
-COPY ${resource_path}/log4j.properties webapps/share/WEB-INF/classes/log4j.properties
-COPY ${resource_path}/logging.properties conf/logging.properties
+COPY ${resource_path}/log4j.properties webapps/share/WEB-INF/classes
+COPY ${resource_path}/logging.properties conf
 
 # install amps on share webapp
 RUN java -jar ${TOMCAT_DIR}/alfresco-mmt/alfresco-mmt*.jar list $TOMCAT_DIR/webapps/share && \
