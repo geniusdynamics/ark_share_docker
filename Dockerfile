@@ -148,6 +148,7 @@ RUN set -eux; \
 
 # Copy the updated log configs to remove any logging to a file and only to stdout (console)
 COPY ${resource_path}/substituter.sh shared/classes/alfresco
+COPY ${resource_path}/share-config-custom.xml shared/classes/alfresco/web-extension
 COPY ${resource_path}/log4j.properties webapps/share/WEB-INF/classes/log4j.properties
 COPY ${resource_path}/logging.properties conf/logging.properties
 
