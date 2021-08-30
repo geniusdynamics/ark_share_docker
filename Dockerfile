@@ -101,7 +101,7 @@ ARG SHARE_AGS_AMP=${SHARE_AGS}.amp
 ARG SHARE_AGS_URL="https://artifacts.alfresco.com/nexus/content/repositories/releases/org/alfresco/alfresco-governance-services-community-share/${ALFRESCO_AGS_VERSION}/${SHARE_AGS_AMP}"
 ARG SHARE_AGS_AMP_SHA1="eb3f4a9290c711cebb2e3a624ed3089a5cca8730"
 ARG SHARE_GOOGLEDRIVE="alfresco-googledrive-share-${ALFRESCO_GOOGLEDRIVE_VERSION}"
-ARG SHARE_GOOGLEDRIVE_AMP=${ALFRESCO_GOOGLEDRIVE}.amp
+ARG SHARE_GOOGLEDRIVE_AMP=${SHARE_GOOGLEDRIVE}.amp
 ARG SHARE_GOOGLEDRIVE_URL="https://artifacts.alfresco.com/nexus/content/repositories/releases/org/alfresco/integrations/alfresco-googledrive-share/${ALFRESCO_GOOGLEDRIVE_VERSION}/${SHARE_GOOGLEDRIVE_AMP}"
 ARG SHARE_GOOGLEDRIVE_AMP_SHA1="f466b0cda9f682f7880030e10604dbfc0b1f42fe"
 
@@ -113,11 +113,9 @@ ADD "${ALFRESCO_URL}" "${SHARE_AGS_URL}" "${SHARE_GOOGLEDRIVE_URL}" /tmp/
 # Create prerequisite to store tools and properties
 # Create required directories
 # unzip distribution
-# Copy the WAR files to the appropriate location for your application server
-# Copy the JDBC drivers for the database you are using to the lib/ directory.
+# Copy the share WAR file to the appropriate location for your application server
 # Copy the alfresco-mmt.jar
 # Copy Licenses to the root of the Docker image
-# Copy the keystore file which is required for Alfresco to start.
 RUN set -eux; \
     checksum=$(sha1sum "/tmp/${ALFRESCO_ZIP}" | awk '{ print $1 }');  \
         if [ $checksum != ${ALFRESCO_ZIP_SHA1} ]; then \
@@ -144,14 +142,16 @@ RUN set -eux; \
     mv /tmp/${SHARE_GOOGLEDRIVE_AMP} amps_share/. ; \
     mv /tmp/${ALFRESCO}/web-server/shared/classes/alfresco/web-extension/* shared/classes/alfresco/web-extension/. ; \
     unzip -d webapps/share /tmp/${ALFRESCO}/web-server/webapps/share.war ; \
+    sed -i "s/shared.loader=/shared.loader=\${catalina.base}\/shared\/classes/" ${TOMCAT_DIR}/conf/catalina.properties ; \
     yum -y erase unzip; \
     yum clean all; \
     rm -rf /tmp/*
 
 # Copy the updated log configs to remove any logging to a file and only to stdout (console)
 COPY ${resource_path}/substituter.sh shared/classes/alfresco
-COPY ${resource_path}/log4j.properties webapps/share/WEB-INF/classes/log4j.properties
-COPY ${resource_path}/logging.properties conf/logging.properties
+COPY ${resource_path}/share-config-custom.xml shared/classes/alfresco/web-extension
+COPY ${resource_path}/log4j.properties webapps/share/WEB-INF/classes
+COPY ${resource_path}/logging.properties conf
 
 # install amps on share webapp
 RUN java -jar ${TOMCAT_DIR}/alfresco-mmt/alfresco-mmt*.jar list $TOMCAT_DIR/webapps/share && \
@@ -166,6 +166,7 @@ RUN java -jar ${TOMCAT_DIR}/alfresco-mmt/alfresco-mmt*.jar list $TOMCAT_DIR/weba
     useradd -u ${USERID} -G ${GROUPNAME} ${IMAGEUSERNAME} && \
     chgrp -R ${GROUPNAME} ${TOMCAT_DIR} && \
     chmod g+rx ${TOMCAT_DIR}/conf && \
+    chmod -R g+rwx ${TOMCAT_DIR}/shared && \
     chmod -R g+r ${TOMCAT_DIR}/conf && \
     find ${TOMCAT_DIR}/webapps -type d -exec chmod 0750 {} \; && \
     find ${TOMCAT_DIR}/webapps -type f -exec chmod 0640 {} \; && \
@@ -176,7 +177,6 @@ RUN java -jar ${TOMCAT_DIR}/alfresco-mmt/alfresco-mmt*.jar list $TOMCAT_DIR/weba
     chmod g+rwx ${TOMCAT_DIR}/temp && \
     chmod g+rwx,o-w ${TOMCAT_DIR}/work && \
     chmod 664 ${TOMCAT_DIR}/alfresco-mmt/alfresco-mmt.jar && \
-    chmod +x ${TOMCAT_DIR}/shared/classes/alfresco/substituter.sh && \
     find /licenses -type d -exec chmod 0755 {} \; && \
     find /licenses -type f -exec chmod 0644 {} \;
 
